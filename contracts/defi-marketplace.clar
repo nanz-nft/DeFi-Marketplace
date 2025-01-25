@@ -311,3 +311,39 @@
 (define-read-only (get-staking-rewards (token-id uint))
     (map-get? staking-rewards { token-id: token-id })
 )
+
+(define-read-only (calculate-rewards (token-id uint))
+    (let
+        (
+            (token (unwrap! (get-token-info token-id) err-invalid-token))
+            (rewards (unwrap! (get-staking-rewards token-id) err-not-staked))
+            (blocks-staked (- stacks-block-height (get stake-timestamp token)))
+            (yield-per-block (/ (var-get yield-rate) u52560)) ;; Approximate blocks per year
+            (new-rewards (* blocks-staked yield-per-block))
+        )
+        (ok (+ (get accumulated-yield rewards) new-rewards))
+    )
+)
+
+;; Private Reward Functions
+
+(define-private (claim-staking-rewards (token-id uint))
+    (let
+        (
+            (rewards (unwrap! (calculate-rewards token-id) err-not-staked))
+            (token (unwrap! (get-token-info token-id) err-invalid-token))
+        )
+        (asserts! (get is-staked token) err-not-staked)
+        
+        (map-set staking-rewards
+            { token-id: token-id }
+            {
+                accumulated-yield: u0,
+                last-claim: stacks-block-height
+            }
+        )
+        
+        ;; Transfer rewards in STX
+        (as-contract (stx-transfer? rewards (as-contract tx-sender) (get owner token)))
+    )
+)
