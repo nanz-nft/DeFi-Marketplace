@@ -191,7 +191,7 @@
             (fee (/ (* price (var-get protocol-fee)) u1000))
         )
         (asserts! (get active listing) err-listing-not-found)
-        (asserts! (is-eq (get active listing) true) err-listing-not-found)
+        ;; Transfer STX from buyer to seller
         
         ;; Transfer STX from buyer to seller
         (try! (stx-transfer? price tx-sender seller))
